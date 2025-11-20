@@ -44,6 +44,8 @@ const Index = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [favoriteBooks, setFavoriteBooks] = useState<number[]>([]);
+  const [showProfile, setShowProfile] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,11 +57,26 @@ const Index = () => {
     setIsLoggedIn(true);
   };
 
+  const toggleFavorite = (bookId: number) => {
+    setFavoriteBooks(prev => 
+      prev.includes(bookId) 
+        ? prev.filter(id => id !== bookId)
+        : [...prev, bookId]
+    );
+  };
+
+  const isFavorite = (bookId: number) => favoriteBooks.includes(bookId);
+
   const BookCard = ({ book }: { book: Book }) => (
     <Card 
-      className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 border-accent/30 cursor-pointer"
+      className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 border-accent/30 cursor-pointer relative group"
       onClick={() => setSelectedBook(book)}
     >
+      {isFavorite(book.id) && (
+        <div className="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full p-1.5">
+          <Icon name="Heart" size={16} />
+        </div>
+      )}
       <div className="aspect-[2/3] overflow-hidden">
         <img 
           src={book.cover} 
@@ -155,14 +172,24 @@ const Index = () => {
             <Icon name="Library" size={40} className="text-primary" />
             <h1 className="text-4xl font-bold font-cormorant">Библиотека</h1>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setIsLoggedIn(false)}
-            className="border-2"
-          >
-            <Icon name="LogOut" size={18} className="mr-2" />
-            Выйти
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowProfile(true)}
+              className="border-2"
+            >
+              <Icon name="User" size={18} className="mr-2" />
+              Профиль
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsLoggedIn(false)}
+              className="border-2"
+            >
+              <Icon name="LogOut" size={18} className="mr-2" />
+              Выйти
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -222,6 +249,74 @@ const Index = () => {
         </div>
       </footer>
 
+      <Dialog open={showProfile} onOpenChange={() => setShowProfile(false)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-card border-4 border-accent/50">
+          <DialogHeader>
+            <DialogTitle className="text-3xl font-bold font-cormorant flex items-center gap-3">
+              <Icon name="User" size={32} className="text-primary" />
+              Личный кабинет
+            </DialogTitle>
+            <DialogDescription className="text-lg">
+              {name || email}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-6">
+            <h3 className="text-2xl font-bold font-cormorant mb-4 flex items-center gap-2">
+              <Icon name="Heart" size={24} className="text-primary" />
+              Избранные книги ({favoriteBooks.length})
+            </h3>
+            
+            {favoriteBooks.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Icon name="BookMarked" size={48} className="mx-auto mb-4 opacity-50" />
+                <p className="text-lg">У вас пока нет избранных книг</p>
+                <p className="text-sm">Добавьте книги из каталога, чтобы сохранить их здесь</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {booksData
+                  .filter(book => favoriteBooks.includes(book.id))
+                  .map(book => (
+                    <div key={book.id} className="relative group">
+                      <Card 
+                        className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 border-accent/30 cursor-pointer"
+                        onClick={() => {
+                          setShowProfile(false);
+                          setSelectedBook(book);
+                        }}
+                      >
+                        <div className="aspect-[2/3] overflow-hidden">
+                          <img 
+                            src={book.cover} 
+                            alt={book.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <CardHeader className="space-y-1 p-3">
+                          <CardTitle className="text-sm leading-tight font-cormorant">{book.title}</CardTitle>
+                          <CardDescription className="text-xs italic">{book.author}</CardDescription>
+                        </CardHeader>
+                      </Card>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(book.id);
+                        }}
+                      >
+                        <Icon name="X" size={16} />
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={selectedBook !== null} onOpenChange={() => setSelectedBook(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-4 border-accent/50">
           {selectedBook && (
@@ -256,9 +351,19 @@ const Index = () => {
                     {selectedBook.description}
                   </p>
                   <div className="mt-6">
-                    <Button className="w-full" size="lg">
-                      <Icon name="BookmarkPlus" size={20} className="mr-2" />
-                      Добавить в избранное
+                    <Button 
+                      className="w-full" 
+                      size="lg"
+                      variant={isFavorite(selectedBook.id) ? "secondary" : "default"}
+                      onClick={() => {
+                        toggleFavorite(selectedBook.id);
+                        if (!isFavorite(selectedBook.id)) {
+                          setTimeout(() => setSelectedBook(null), 300);
+                        }
+                      }}
+                    >
+                      <Icon name={isFavorite(selectedBook.id) ? "BookmarkCheck" : "BookmarkPlus"} size={20} className="mr-2" />
+                      {isFavorite(selectedBook.id) ? 'В избранном' : 'Добавить в избранное'}
                     </Button>
                   </div>
                 </div>

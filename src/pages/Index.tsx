@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -46,6 +47,9 @@ const Index = () => {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [favoriteBooks, setFavoriteBooks] = useState<number[]>([]);
   const [showProfile, setShowProfile] = useState(false);
+  const [bookNotes, setBookNotes] = useState<Record<number, string>>({});
+  const [editingNote, setEditingNote] = useState<number | null>(null);
+  const [tempNote, setTempNote] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +70,17 @@ const Index = () => {
   };
 
   const isFavorite = (bookId: number) => favoriteBooks.includes(bookId);
+
+  const saveNote = (bookId: number) => {
+    setBookNotes(prev => ({ ...prev, [bookId]: tempNote }));
+    setEditingNote(null);
+    setTempNote('');
+  };
+
+  const startEditingNote = (bookId: number) => {
+    setEditingNote(bookId);
+    setTempNote(bookNotes[bookId] || '');
+  };
 
   const BookCard = ({ book }: { book: Book }) => (
     <Card 
@@ -296,6 +311,14 @@ const Index = () => {
                         <CardHeader className="space-y-1 p-3">
                           <CardTitle className="text-sm leading-tight font-cormorant">{book.title}</CardTitle>
                           <CardDescription className="text-xs italic">{book.author}</CardDescription>
+                          {bookNotes[book.id] && (
+                            <div className="pt-2 mt-2 border-t border-accent/30">
+                              <div className="flex items-start gap-1 text-xs text-muted-foreground">
+                                <Icon name="FileText" size={12} className="mt-0.5 flex-shrink-0" />
+                                <p className="line-clamp-2">{bookNotes[book.id]}</p>
+                              </div>
+                            </div>
+                          )}
                         </CardHeader>
                       </Card>
                       <Button
@@ -350,7 +373,7 @@ const Index = () => {
                   <p className="text-base leading-relaxed">
                     {selectedBook.description}
                   </p>
-                  <div className="mt-6">
+                  <div className="mt-6 space-y-4">
                     <Button 
                       className="w-full" 
                       size="lg"
@@ -365,6 +388,70 @@ const Index = () => {
                       <Icon name={isFavorite(selectedBook.id) ? "BookmarkCheck" : "BookmarkPlus"} size={20} className="mr-2" />
                       {isFavorite(selectedBook.id) ? 'В избранном' : 'Добавить в избранное'}
                     </Button>
+
+                    {isFavorite(selectedBook.id) && (
+                      <div className="border-t pt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold font-cormorant text-lg flex items-center gap-2">
+                            <Icon name="FileText" size={18} className="text-primary" />
+                            Личная заметка
+                          </h4>
+                          {!editingNote && bookNotes[selectedBook.id] && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => startEditingNote(selectedBook.id)}
+                            >
+                              <Icon name="Edit" size={14} className="mr-1" />
+                              Редактировать
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {editingNote === selectedBook.id ? (
+                          <div className="space-y-2">
+                            <Textarea 
+                              placeholder="Напишите свои мысли о книге..."
+                              value={tempNote}
+                              onChange={(e) => setTempNote(e.target.value)}
+                              className="min-h-[120px]"
+                            />
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm"
+                                onClick={() => saveNote(selectedBook.id)}
+                              >
+                                <Icon name="Save" size={14} className="mr-1" />
+                                Сохранить
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingNote(null);
+                                  setTempNote('');
+                                }}
+                              >
+                                Отмена
+                              </Button>
+                            </div>
+                          </div>
+                        ) : bookNotes[selectedBook.id] ? (
+                          <div className="bg-muted/50 p-3 rounded-md border border-accent/30">
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{bookNotes[selectedBook.id]}</p>
+                          </div>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => startEditingNote(selectedBook.id)}
+                          >
+                            <Icon name="Plus" size={16} className="mr-2" />
+                            Добавить заметку
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
